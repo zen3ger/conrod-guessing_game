@@ -20,7 +20,7 @@ All cool? Great! Let's move on!
 ###Basic window
 In this section we are about to write all the code needed to get an empty window show up. For now we'll use `piston_window` as the backend.
 
-**Imports**
+**Imports:**
 Open up your `main.rs` file and add these lines to the top:
 ```rust
 #[macro_use] extern crate conrod;
@@ -30,7 +30,7 @@ use conrod::backend::piston::{self,Window,WindowEvents,OpenGL};
 
 Eventhough we're not goin to use any macros in this section, add `#[macro_use]` also and I'll tell you later why it is a 'thing' you'll need!
 
-**Definitions**
+**Definitions:**
 I'm not sure about you, but I prefer to have my initial window dimensions being simple to refer to, that's why I put them up top as `const`.
 ```rust
 const WIDTH: u32 = 640;
