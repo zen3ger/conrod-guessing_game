@@ -156,3 +156,146 @@ use app_data::GuessingGame;
 ```
 
 ###Setting up the UI
+Allright, go back to the `main.rs` file as the next step is going to be creating the `Ui`. This is special as `Ui` in Conrod is the data structure that keeps track of the state of every `Widget`, the `Theme` you use globally (this is for in app themeing, does not support OS theme at the moment) and many more. If your curious go look at [here](http://docs.piston.rs/conrod/conrod/struct.Ui.html)!
+
+We're not going to create a `Ui` directly, we have the `UiBuilder` at hand to make things easy. `UiBuilder` let's you specify the ui's dimensions, theme (if none than the default is used) and widget capacity.
+As the `Ui` track widgets in a graph, it can grow organically or you can help it predefineing how many widgets you're about to instantiate, this could help app launch times, so you're not expand the graph dynamically in the very first draw cycle.
+
+Right now, lets stick with the dimensions only, as we don't know how many widgets we're about to use.
+
+```rust
+let mut ui = conrod::UiBuilder::new([WIDTH as f64,HEIGHT as f64]).build();
+```
+
+As the widget states are store inside the graph, we use `Id`s to acces specific ones.
+Conrod provides an easy to use macro for instantiating all your `Ids`. You remember `#[macro_use]`, right? This macro not only creates the definition, but some functions needed to get going. Write this snippet outside of your `main`.
+```rust
+widget_ids! {
+    struct Ids {
+		// id names goes here, like:
+		canvas,
+	}
+}
+```
+So, the macro will create the `Ids` struct for us, with fields with the name you write inside, in this case it's `canvas`. Each field going to represent unique numbers for all widgets, but how? Well we need to add a one more line to `main()`.
+```rust
+let mut ids = Ids::new(ui.widget_id_generator());
+```
+Let's create the functions which is going to be used to draw widgets! For simplicity, let's just put a `Canvas` on screen, it's a widget that can be used as a container for other widgets.
+
+```rust
+fn set_ui(ref mut ui: conrod::UiCell, ids: &Ids) {
+    use conrod::Widget;
+    use conrod::Colorable;
+    use conrod::widget::{Canvas};
+
+    Canvas::new().color(conrod::color::WHITE).pad(50.0).set(ids.canvas, ui);
+}
+```
+What you see here, is that we interact with the ui through something called the `UiCell`. The `UiCell` restricts you from mutating the ui in ways you shouldn't do, and provides methods on how you can mutate the ui in certain contexts. You can dig through all you can do through the `UiCell` [here](http://docs.piston.rs/conrod/conrod/struct.UiCell.html).
+
+Let's look at the `Canvas` for a second! As you can see we're not binding a canvas object to a variable, we simply declare what kind of canvas do we want. Like I say let's make it white, I want the padding from all edges to be 50, and this is going to live under the name `canvas`. You can do [many more](http://docs.piston.rs/conrod/conrod/widget/canvas/struct.Canvas.html) things to the canvas, like giving it a title, managing the flow of child canvases and such.
+
+We want to update the ui, so let's import one more thing!
+```rust
+use conrod::backend::piston::event::UpdateEvent;
+```
+Next step is to finally add something to our draw loop!
+```rust
+while let Some(event) = window.next_event(&mut events) {
+        event.update(|_| set_ui(ui.set_widgets(),&ids));
+}
+```
+If you run it, you see that it's still a black window, well... Every cycle you tell Conrod to update the canvas in the state graph, but have you ever rendered the graph aka the ui? Nope, so let's do it!
+
+Right now we have no text to draw, but we need at least an empty text texture cache. The secound item on our list is an image map which describes the widget-image relationships. Confused? No worries, right now none of those will be used, they're just empty shells to feed them into the `draw()` function of `piston` backend.
+```rust
+let mut text_texture_cache = piston::window::GlyphCache::new(&mut window,0,0);
+let image_map = conrod::image::Map::new();
+
+while let Some(event) = window.next_event(&mut events) {
+	// update ui first
+	event.update(|_| set_ui(ui.set_widgets(),&ids));
+	// then display
+	window.draw_2d(&event, |c,g| {
+		if let Some(primitives) = ui.draw_if_changed() {
+			fn texture_from_image<T>(img:&T) -> &T { img };
+			piston::window::draw(c,g, primitives,
+								 &mut text_texture_cache,
+								 &image_map,
+								 texture_from_image);
+		}
+	});
+}
+```
+If you run the application now, you'll see a window popping up filled with white. So the canvas actually fills out the window, huh great! Let's test resizing the window. Oooops, you quickly realize that it's not working properly. The canvas can resizes itself up to the windows initial width and height. It's because Conrod supports multiple backends, so you have to tell it what kind of event convertions should it do. Add 3 more lines right above `event.update()`.
+```rust
+if let Some(e) = piston::window::convert_event(event.clone(), &window) {
+            ui.handle_event(e);
+}
+```
+Right before you move on, play a little bit with the canvas, its color, title!
+
+**The code so far:**
+```rust
+#[macro_use]
+extern crate conrod;
+
+use conrod::backend::piston::{self,Window,WindowEvents,OpenGL};
+use conrod::backend::piston::event::UpdateEvent;
+
+mod app_data;
+use app_data::GuessingGame;
+
+fn main() {
+    const WIDTH: u32 = 640;
+    const HEIGHT: u32 = 480;
+
+    let opengl = OpenGL::V3_2;
+
+    let mut window: Window = piston::window::WindowSettings::new("Guessing Game",[WIDTH,HEIGHT])
+        .opengl(opengl)
+        .exit_on_esc(true)
+        .build().unwrap();
+
+    let mut events = WindowEvents::new();
+
+    let mut ui = conrod::UiBuilder::new([WIDTH as f64,HEIGHT as f64]).build();
+    let mut ids = Ids::new(ui.widget_id_generator());
+
+    let mut text_texture_cache = piston::window::GlyphCache::new(&mut window,0,0);
+    let image_map = conrod::image::Map::new();
+
+    while let Some(event) = window.next_event(&mut events) {
+        if let Some(e) = piston::window::convert_event(event.clone(), &window) {
+            ui.handle_event(e);
+        }
+
+        event.update(|_| set_ui(ui.set_widgets(),&ids));
+
+        window.draw_2d(&event, |c,g| {
+            if let Some(primitives) = ui.draw_if_changed() {
+                fn texture_from_image<T>(img:&T) -> &T { img };
+                piston::window::draw(c,g, primitives,
+                                     &mut text_texture_cache,
+                                     &image_map,
+                                     texture_from_image);
+            }
+        });
+    }
+}
+
+widget_ids! {
+    struct Ids {
+        canvas,
+    }
+}
+
+fn set_ui(ref mut ui: conrod::UiCell, ids: &Ids) {
+    use conrod::Widget;
+    use conrod::Colorable;
+    use conrod::widget::{Canvas};
+
+    Canvas::new().color(conrod::color::WHITE).pad(50.0).set(ids.canvas, ui);
+}
+```
