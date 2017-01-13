@@ -5,4 +5,5 @@ authors = ["zen3ger"]
 
 [dependencies]
 conrod="*"
+find_folder="*"
 rand="*"
