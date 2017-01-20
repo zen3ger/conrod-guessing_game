@@ -1,3 +1,5 @@
+##CURRENT CODE DOES NOT RESEMBELS THE TUTORIAL - WORK IN PROGRESS
+
 ##Using Conrod - Let's build something simple!
 
 We're about to make a simple application step by step. The example app will be a graphical version of the Guessing Game. I'm pretty sure you came across this one in the Rust Book. This time, we're going to make it look pretty!
@@ -102,7 +104,7 @@ fn main() {
 ```
 
 ###Application data
-In this section are goal is to define what kind of data are we going to track. This is something you may not have to do in traditional, retained mode GUI systems as widgets store many of that data. However, Conrod is an IMGUI system of which the most mentionable is that IMGUI widgets does not store state. It also has a bright side, you never have to syncronise data between your applications inner state and the data shown to the user.
+In this section our goal is to define what kind of data are we going to track. This is something you may not have to do in traditional, retained mode GUI systems as widgets store many of that data. However, Conrod is an IMGUI system of which the most mentionable is that IMGUI widgets does not store state. It also has a bright side, you never have to syncronise data between your applications inner state and the data shown to the user.
 
 In my oppinion, we only need to take care of a few things in this case, like:
 * what is the secret number
