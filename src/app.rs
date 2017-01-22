@@ -1,5 +1,6 @@
 /// This module contains code, that is not
 /// required to be bound to the application logic.
+
 /// Macro used to generate the ids
 widget_ids! {
     pub struct Ids {
@@ -8,7 +9,6 @@ widget_ids! {
         count_text,
         info_text,
         textbox,
-        smiley,
         slider,
         newgame,
     }
@@ -107,8 +107,16 @@ impl GameData {
 pub fn load_font(font: &str) -> super::std::path::PathBuf {
     use super::find_folder::Search::KidsThenParents;
 
-    let fonts_dir = KidsThenParents(3, 5).for_folder("fonts").expect("`assets` not found!");
+    let fonts_dir = KidsThenParents(3, 5).for_folder("fonts").expect("`fonts/` not found!");
     let font_path = fonts_dir.join(font);
 
     font_path
+}
+
+pub fn set_caption(game: &GameData) -> String {
+    let mut caption = "Guess number between ".to_owned();
+    let range = game.show_range();
+    caption.push_str(&range);
+
+    caption
 }

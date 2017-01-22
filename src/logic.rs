@@ -1,17 +1,15 @@
-use app::{GameData, AppData, Ids};
+use app::{self, GameData, AppData, Ids};
 
 use super::conrod;
 
 pub fn update(ref mut ui: conrod::UiCell, ids: &Ids, game: &mut GameData, data: &mut AppData) {
-    use conrod::{Colorable, Labelable, Positionable, Sizeable};
+    use conrod::{Colorable,Labelable, Positionable, Sizeable};
     use conrod::Widget;
     use conrod::widget::text_box;
     use conrod::widget::range_slider;
     use conrod::widget::{Canvas, Button, Text, TextBox, RangeSlider};
 
-    let mut caption = "Guess number between ".to_owned();
-    let range = game.show_range();
-    caption.push_str(&range);
+    let caption = app::set_caption(&game);
 
     Canvas::new()
         .color(conrod::color::WHITE)
