@@ -1,3 +1,8 @@
+#Attention!
+There were breaking changes in conrod from version 0.49.0 to 0.51.1. 
+I'll update the turorial sooner or later, till then it works with 
+v0.49.0.
+
 ##Using Conrod - Let's build something simple!
 
 We're about to make a simple application step by step. The example app will be a graphical version of the Guessing Game. I'm pretty sure you came across this one in the Rust Book. This time, we're going to make it look 'pretty'!
