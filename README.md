@@ -1,15 +1,15 @@
-#Attention!
+# Attention!
 There were breaking changes in conrod from version 0.49.0 to 0.51.1. 
 I'll update the turorial sooner or later, till then it works with 
 v0.49.0.
 
-##Using Conrod - Let's build something simple!
+## Using Conrod - Let's build something simple!
 
 We're about to make a simple application step by step. The example app will be a graphical version of the Guessing Game. I'm pretty sure you came across this one in the Rust Book. This time, we're going to make it look 'pretty'!
 ![Guessing Game UI](/illustration/app_ui.png)
 
 But before we move on, let me tell you how I'm going to structure the application based on how `conrod` and IMGUIs work.
-###How to think IMGUI
+### How to think IMGUI
 In an IMGUI library widgets do not hold state, they are recreated with always the actual data provided at each update cycle. It means you don't have to manually update the content of the widgets. Take a counter example in Visual C#:
 ```cs
 private void ButtonInc_Click(object sender, EventArgs e)
@@ -51,7 +51,7 @@ So, remember:
 
 **Note 2:** IMGUIs are not perfect for everything, it's great for displaying live data, and having a reactive UI, ie. in game UI or for displaying sensor data, soundwave forms.
 
-###0. Setting up the project:
+### 0. Setting up the project:
 Type `cargo new --bin guessing_game` into your terminal to get the skeleton of the project. First we need to add the dependencies for our application, so open up the `Cargo.toml` file in the freshly created directory and lets add a few lines to it!
 
 ```toml
@@ -67,10 +67,10 @@ As it can take a while to download and compile for the first time, let's do the 
 
 All cool? Great! Let's move on!
 
-###1. Basic window
+### 1. Basic window
 In this section we are about to write all the code needed to get an empty window show up. For now we'll use `piston_window` as the backend.
 
-#####Imports:
+##### Imports:
 Open up your `main.rs` file and edit to make it look like this:
 ```rust
 #[macro_use]
@@ -90,7 +90,7 @@ fn main () {
 For now, that's all we need to import. The rest is going to be inside functions and modules.
 You see that `#[macro_use]` up top, right? `conrod` has a macro wich is used always, `widget_ids!`. Wait until we start working with widgets, I'll tell you more.
 
-#####Definitions:
+##### Definitions:
 The 3 basic things we will need, is a title, the width and the height of the window.
 ```rust
 fn main() {
@@ -135,7 +135,7 @@ We also need to get the events from the window, for that we have to create an ev
 ```rust
 let mut events = WindowEvents::new();
 ```
-#####The event loop:
+##### The event loop:
 The only thing left is to write a loop in which we can check the window events, and it also keeps are window open.
 ```rust
 while let Some(event) = window.next_event(&mut events) {
@@ -147,7 +147,7 @@ We are going to use this loop to draw, update and do pretty much everything we n
 
 If you do `cargo run` a black window should pop up with the given title and dimensions. Congrats! :)
 
-###2. Application and game data
+### 2. Application and game data
 In this section our goal is to define what kind of data are we going to track. This is something you may not have to do in traditional, retained mode GUI systems as widgets store many of that data. But remember `conrod` is an IMGUI library of which the most mentionable is that widgets do not store state! For instance `TextBox` doesn't store the string it displays, so it basically writes into the a variable, and reads back from a variable at each update. The window data is stored, so you don't have to pass `window`, or it's size and title to the draw function. Writing a function to except a struct is still easier than adding more and more parameters and then fighting with the borrow checker, I think.
 
 Taking care of widget state is sometimes a problem, but most of the time is a great way of specifing no more than what we need!
@@ -274,12 +274,12 @@ fn main() {
 }
 ```
 
-###3. UI setups
+### 3. UI setups
 The next step is going to be creating the `Ui`. This is special as `Ui` in `conrod` is the data structure that keeps track of the state of every `Widget`, the `Theme` you use globally (this is for in app themeing, does not support OS theme at the moment) and many more. In generall, `Ui` handles draw events, like highlighting a hovered button. It also tries to reduce the number of draw calls, meaning it updates the screen if and only if there's an update which demands a redraw. (Of course, you can demand continuous redraws!)
 
 For more, go look at [here](http://docs.piston.rs/conrod/conrod/struct.Ui.html)!
 
-#####UiBuilder:
+##### UiBuilder:
 `UiBuilder` let's you specify the ui's dimensions, theme (if none than the default is used) and widget capacity.
 As the `Ui` tracks widgets in a graph, it can grow organically or you can help it predefineing how many widgets you're about to instantiate, this could help app launch times, so you're not expand the graph dynamically in the very first draw cycle.
 
@@ -289,7 +289,7 @@ Right now, lets stick with the dimensions only, so you can experiment with addin
 // add this to main()
 let mut ui = conrod::UiBuilder::new([WIDTH as f64,HEIGHT as f64]).build();
 ```
-#####Ids:
+##### Ids:
 As the widget states are store inside the graph, we use `Ids` to acces specific widgets. `conrod` provides a macro for creating an `Ids` struct with the given fields. In my opinion `Ids` are part of the **data**, so place the macro in `app.rs`.
 ```rust
 widget_ids! {
@@ -311,7 +311,7 @@ let mut ids = Ids::new(ui.widget_id_generator());
 
 I think the names are descriptive enough. The only thing to mention is that `ids.canvas` is the id of `Canvas`, a widget that can hold other widgets and usually fills the entire window.
 
-###4. Content rendering
+### 4. Content rendering
 Next step is to finally add something to our draw loop!
 ```rust
 while let Some(event) = window.next_event(&mut events) {
@@ -366,14 +366,14 @@ while let Some(event) = window.next_event(&mut events) {
 
 If you run the application now, you'll see a window popping up filled with white. So the canvas actually fills out the window, huh great! Let's test resizing the window. Oooops, you quickly realize that it's not working properly. Also, where's the `caption`?
 
-#####Resize:
+##### Resize:
 The canvas has the initial width and height of the window, and it doesn't grow beyound. It's because `conrod` supports multiple backends, so you have to tell it what kind of event convertions should be done. Add 3 more lines right above `event.update()` to make resizing work and by general register window events.
 ```rust
 if let Some(e) = piston::window::convert_event(event.clone(), &window) {
             ui.handle_event(e);
 }
 ```
-#####Fonts:
+##### Fonts:
 So text isn't rendered as there's no font defined in `ui` by default. I would say fonts are also part of **data**, because of that write a helper function to load fonts in `app.rs`:
 ```rust
 pub fn load_font(font: &str) -> super::std::path::PathBuf {
@@ -401,7 +401,7 @@ let ids = Ids::new(ui.widget_id_generator());
 
 If you run the application now, you'll get the title and resize work properly.
 
-###5. Logic
+### 5. Logic
 
 I already asked you to skip ahead and write this code in `logic.rs`, the only thing left is to walk you through!
 
@@ -451,7 +451,7 @@ Let's look at the `Canvas` for a second! As you can see we're not binding a canv
 The most important bit is `set()`. It creates the widget, adds it to the `ui` graph with the given id.
 
 You can look up `Positionable` to see all the functions available, and to have a better understanding of what the code below means. I'll give you the basic syntax for each widget used, and then the final logic and one more 'homework' to do.
-#####Button:
+##### Button:
 ```rust
 for _click in Button::new()
     .top_left_of(ids.canvas)
@@ -464,7 +464,7 @@ for _click in Button::new()
 ```
 It reads quite well: 'I have a button at the top left corner of the canvas, with size of 100 by 50, it has a label. For each click this button takes a new guess and based on that updates the info.' Before you start screaming, that `button` isn't at the top left, remember we have an edge padding of 40 set for the `canvas`. `_` in `_click` is used to tell the compiler we named the iterator, but not going to use it, and we will get no warnings.
 
-#####Text:
+##### Text:
 ```rust
 Text::new(&(game.get_no_guess().to_string()))
     .middle_of(ids.button)
@@ -472,7 +472,7 @@ Text::new(&(game.get_no_guess().to_string()))
     .set(ids.count_text, ui);
 ```
 
-#####TextBox:
+##### TextBox:
 ```rust
 for edit in TextBox::new(&data.guess)
     .align_text_middle()
@@ -536,4 +536,4 @@ pub fn update(/* ... */) {
 I'd like you to have some fun with positioning the elements, come up with your own layout.
 But furthermore **extend the application** with and `else {/*new game and set new range*/}` branch! You can checkout my solution.
 
-###6. Theming - TODO
+### 6. Theming - TODO
