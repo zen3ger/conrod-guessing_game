@@ -1,42 +1,43 @@
-use app::{self, GameData, AppData, Ids};
+use super::app::{AppData, GameData, Ids};
+use super::conrod_core;
 
-use super::conrod;
+pub fn update(ref mut ui: conrod_core::UiCell, ids: &Ids, game: &mut GameData, data: &mut AppData) {
+    use conrod_core::Widget;
+    use conrod_core::widget::text_box;
+    use conrod_core::widget::range_slider;
+    use conrod_core::widget::{Button, Canvas, RangeSlider, Text, TextBox};
+    use conrod_core::{color, Colorable, Labelable, Positionable, Sizeable};
 
-pub fn update(ref mut ui: conrod::UiCell, ids: &Ids, game: &mut GameData, data: &mut AppData) {
-    use conrod::{Colorable,Labelable, Positionable, Sizeable};
-    use conrod::Widget;
-    use conrod::widget::text_box;
-    use conrod::widget::range_slider;
-    use conrod::widget::{Canvas, Button, Text, TextBox, RangeSlider};
-
-    let caption = app::set_caption(&game);
+    let caption = format!("Guess number between {}", game.show_range());
 
     Canvas::new()
-        .color(conrod::color::WHITE)
+        .color(color::WHITE)
         .title_bar(&caption)
         .pad(40.0)
         .set(ids.canvas, ui);
 
-
     if !game.end() {
         for _click in Button::new()
-            .top_left_of(ids.canvas)
-            .w_h(100.0, 50.0)
+            .top_left_with_margin_on(ids.canvas, 0.0)
             .label("Guess!")
-            .set(ids.button, ui) {
+            .w_h(100.0, 40.0)
+            .color(color::WHITE)
+            .press_color(color::RED)
+            .set(ids.guess_button, ui)
+        {
             data.info = game.new_guess(&data.guess);
         }
 
         Text::new(&(game.get_no_guess().to_string()))
-            .middle_of(ids.button)
-            .down_from(ids.button, 10.0)
+            .middle_of(ids.guess_button)
+            .down_from(ids.guess_button, 10.0)
             .set(ids.count_text, ui);
 
         for edit in TextBox::new(&data.guess)
-            .align_text_middle()
-            .right_from(ids.button, 10.0)
+            .right_from(ids.guess_button, 10.0)
             .w_h(200.0, 50.0)
-            .set(ids.textbox, ui) {
+            .set(ids.textbox, ui)
+        {
             match edit {
                 text_box::Event::Enter => {
                     data.info = game.new_guess(&data.guess);
@@ -53,14 +54,13 @@ pub fn update(ref mut ui: conrod::UiCell, ids: &Ids, game: &mut GameData, data: 
             .font_size(25)
             .set(ids.info_text, ui);
     } else {
-        for (edge, value) in RangeSlider::new(game.range_min as f32,
-                                              game.range_max as f32,
-                                              -500.0,
-                                              500.0)
-            .padded_w_of(ids.canvas, 100.0)
-            .h(50.0)
-            .mid_bottom_with_margin_on(ids.canvas, 10.0)
-            .set(ids.slider, ui) {
+        for (edge, value) in
+            RangeSlider::new(game.range_min as f32, game.range_max as f32, -500.0, 500.0)
+                .padded_w_of(ids.canvas, 100.0)
+                .h(50.0)
+                .mid_bottom_with_margin_on(ids.canvas, 10.0)
+                .set(ids.slider, ui)
+        {
             match edge {
                 range_slider::Edge::Start => game.range_min = value as i32,
                 range_slider::Edge::End => game.range_max = value as i32,
@@ -70,10 +70,10 @@ pub fn update(ref mut ui: conrod::UiCell, ids: &Ids, game: &mut GameData, data: 
             .middle_of(ids.canvas)
             .up_from(ids.slider, 40.0)
             .w_h(150.0, 50.0)
-            .align_label_middle()
             .label_font_size(20)
             .label("New game")
-            .set(ids.newgame, ui) {
+            .set(ids.newgame, ui)
+        {
             game.restart();
         }
     }
