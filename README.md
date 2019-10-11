@@ -59,8 +59,8 @@ Type `cargo new --bin guessing_game` into your terminal to get the skeleton of t
 ```toml
 [dependencies]
 piston_window = "0.89"
-conrod_piston = "0.67.0"
 conrod_core = "0.67.0"
+conrod_piston = "0.67.0"
 find_folder="*"
 rand="*"
 ```
@@ -732,5 +732,47 @@ We will add some new UI elements to show these options to our user. Here's how t
 
 ![Guessing Game UI Updated](/illustration/app_ui_updated.png)
 
+ur game logic is already accounting for these new additions, all we need to do at this point is update our UI code by extending the main conditional `if !game.end()`. Add the following `else` statement to account for our new game state.
 
-### 6. Theming - TODO
+```rust
+
+if !game.end() {
+    // ... Existing code
+} else {
+    for (edge, value) in
+            RangeSlider::new(game.range_min as f32, game.range_max as f32, -500.0, 500.0)
+                .padded_w_of(ids.canvas, 100.0)
+                .h(50.0)
+                .mid_bottom_with_margin_on(ids.canvas, 10.0)
+                .set(ids.slider, ui)
+        {
+            match edge {
+                range_slider::Edge::Start => game.range_min = value as i32,
+                range_slider::Edge::End => game.range_max = value as i32,
+            }
+        }
+        for _click in Button::new()
+            .middle_of(ids.canvas)
+            .up_from(ids.slider, 40.0)
+            .w_h(150.0, 50.0)
+            .label_font_size(20)
+            .label("New game")
+            .set(ids.newgame, ui)
+        {
+            game.restart();
+        }
+}
+```
+
+Here, we've introduced two new widgets:
+
+- A `RangeSlider` which will allow the player to choose a number range for generating a new random number for the next game.
+- A new `Button` to begin the game.
+
+When running the game now, the logic loop will detect when the game has completed, and present this new UI to the player.
+
+#### The end
+
+We've completed what we set out to do, build something simple with conrod. 
+
+Have fun playing the guessing game. 
