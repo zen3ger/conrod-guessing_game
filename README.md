@@ -1,11 +1,13 @@
 ## Using Conrod - Let's build something simple!
 
 We're about to make a simple application step by step. The example app will be a graphical version of the Guessing Game. I'm pretty sure you came across this one in the Rust Book. This time, we're going to make it look 'pretty'!
-![Guessing Game UI](/illustration/app_ui.png)
+![Guessing Game UI](/illustration/app_ui.png) 
 
 But before we move on, let me tell you how I'm going to structure the application based on how `conrod` and IMGUIs work.
+
 ### How to think IMGUI
 In an IMGUI library widgets do not hold state, they are recreated with always the actual data provided at each update cycle. It means you don't have to manually update the content of the widgets. Take a counter example in Visual C#:
+
 ```cs
 private void ButtonInc_Click(object sender, EventArgs e)
 {
@@ -13,7 +15,9 @@ private void ButtonInc_Click(object sender, EventArgs e)
     LabelCount.Text = count.ToString();
 }
 ```
+
 First, the update is tied to the `callback` of the `ButtonInc` object and we also have to tell the `LabelCount` object to update its `Text` field. At each point in the code you change `count` you also have to update the label. Ok, you can encapsulat these changes into one single function to call it at each point `count` changes, like:
+
 ```cs
 private void UpdateCount(int amount)
 {
@@ -21,8 +25,10 @@ private void UpdateCount(int amount)
     LabelCount.Text = count.ToString();
 }
 ```
+
 The point is, you store both `count` and `LabelCount.Text` while they represent the same thing.
 In `conrod` the code would look like this:
+
 ```rust
 let mut count = 0;
 //... stuff here
@@ -35,6 +41,7 @@ for click in Button::new()
 Text::new(&count.to_string())
 	.options_come_here();
 ```
+
 An IMGUI is a bit more descriptive, if you read to code what it says at each click increment the counter and show me it as text. Let's say you have a dozen buttons. Each adds, subtracts or multiplies `count`, you still only have to do the `count.to_string()` once and only once, when you redraw the `Text` in comparison to always calling `UpdateCount()` in the  C# example.
 
 The point of the above is that the **content** you see on screen is driven by the **logic** of the program, while the logic is driven by the application **data**! The separation in the application that I'm going to use will be the same. There will be a `main.rs` with all the setup and initialisation for showing the **content**. There will also be a `logic.rs` and an `app.rs` with the application data, and some helper functions which doesn't necessarily belongs to the other 2 categories. Finally, we'll add an `event.rs` as single point of managing events.
@@ -438,24 +445,19 @@ while let Some(event) = window.next_event(&mut events) {
 }
 ```
 
-That is an epic amount of code. Never fear though, a lot of this code is simply required as parameters to the last method called.
+That is an epic amount of code. Never fear though, a lot of this code is simply required as parameters to the last method `conrod_piston::draw` to keep things performant. Lets step through and take stock of what we have just added.
 
-Lets step through and take stock of what we have just added.
+The `image_map` and `text_vertex_data` variables we created allow piston to perform optimisation and caching on our UI data. This is an internal feature which we won't dwell on here, but more information is available [here](https://docs.rs/conrod_piston/0.67.0/conrod_piston/draw/fn.primitives.html) if you're the curious type. The same is true for the closure we defined named `cache_queued_glyphs`. Again, we don't need to concern ourselves with this at this point. The same is true of our next internal method `texture_from_image`.
 
-
-The `image_map` and `text_vertex_data` variables we created allow piston to perform optimisation and caching on our UI data. This is an internal feature which we won't dwell on here, but more information is available [here](https://docs.rs/conrod_piston/0.67.0/conrod_piston/draw/fn.primitives.html).
-
-The same is true for the closure we defined named `cache_queued_glyphs`. Again, we don't need to concern ourselves with this at this point.
-
-At the end of our new code, we call `conrod_piston::draw::primitives()` which is the call which renders our widget primitives (Why [primitives](https://docs.rs/conrod/0.61.1/conrod/guide/chapter_1/index.html#available-widgets)?)
+At the end of our new code, beyond the caching calls, we call `conrod_piston::draw::primitives()` which is the call which renders our widget primitives. In the initial call to our `logic::update` method, we are updating the data state, which is read by our widgets when they are updated by the call to `conrod_piston::draw::primitives()`.
 
 If you run our game now, you'll see a window popping up filled with white. So the canvas actually fills out the window, huh great! Let's test resizing the window. Oooops, you quickly realize that it's not working properly. Also, where's the `caption`?
 
 ##### Resize:
 
-The canvas has the initial width and height of the window, and it doesn't grow beyound. It's because `conrod` supports multiple backends, so you have to tell it what kind of event convertions should be done.
+The canvas has the initial width and height of the window, and it doesn't grow beyound. This is because `conrod` supports multiple backends: we have to tell it what kind of event convertions should be done.
 
-Since the conversion and handling of such events is relatively isolated, let's create one new file to manage it. Create the file `event.rs` and add the following code:
+Since the conversion and handling of such events is relatively isolated, let's create one new file to manage events. Create the file `event.rs` and add the following code:
 
 ```rust
 //! A backend for converting src events to conrod's `Input` type.
@@ -519,9 +521,9 @@ where
 }
 ```
 
-As you can see, we are accepting generic `piston` events, and returning `conrod` events, which relate directly to our ui.
+As you can see, we are accepting generic `piston::GenericEvent` events, and returning `conrod_core::event` events, which our UI knows how to handle.
 
-This also captures the Window resize event. We can now handle the resize events which were not being captured when we resied earlier. Add the following to the beginning of your `main()` function in `main.rs`, updating the imports as you go:
+Our newly added update code will also captures the Window resize event. We can now let `piston` handle the resize events which were not being captured when we resied earlier. Add the following to the beginning of your `main()` function in `main.rs`:
 
 ```rust
 // Event loop - draw loop
@@ -576,7 +578,7 @@ ui.fonts.insert_from_file(font_path).unwrap();
 let ids = Ids::new(ui.widget_id_generator());
 ```
 
-If you run the application now, you'll get the title displays correctly.
+If you run the application now, you'll see the title displays correctly.
 
 ### 5. Logic
 
@@ -592,7 +594,7 @@ pub fn update(ref mut ui: conrod::UiCell, ids: &Ids, game: &mut GameData, data: 
     use conrod::widget::text_box;
     use conrod::widget::{Canvas, Button, Text, TextBox};
 
-    let caption = app::set_caption(&game);
+    let caption = format!("Guess number between {}", game.show_range());
 
     Canvas::new()
         .color(conrod::color::WHITE)
@@ -601,16 +603,7 @@ pub fn update(ref mut ui: conrod::UiCell, ids: &Ids, game: &mut GameData, data: 
         .set(ids.canvas, ui);
 }
 ```
-Where `set_caption()` is in `app.rs` and defined as:
-```rust
-pub fn set_caption(game: &GameData) -> String {
-    let mut caption = "Guess number between ".to_owned();
-    let range = game.show_range();
-    caption.push_str(&range);
 
-    caption
-}
-```
 Q: **Why do I define the `caption` here?**
 A: Because it's the combination of the two states, it does not belongs to any, only to the canvas.
 
@@ -629,7 +622,7 @@ The most important bit is `set()`. It creates the widget, adds it to the `ui` gr
 
 You can look up `Positionable` to see all the functions available, and to have a better understanding of what the code below means. I'll give you the basic syntax for each widget used, and then the final logic and one more 'homework' to do.
 
-#### THe Guess Button:
+#### The Guess Button:
 
 ```rust
 for _click in Button::new()
@@ -661,7 +654,7 @@ Text::new(&(game.get_no_guess().to_string()))
 
 #### TextBox:
 
-...and a text bx for entry of our guess:
+...and a text box for entry of our guess:
 
 ```rust
 for edit in TextBox::new(&data.guess)
@@ -680,7 +673,7 @@ for edit in TextBox::new(&data.guess)
     }
 ```
 
-The complete update logic is:
+The complete update logic should look like the following:
 
 ```rust
 pub fn update(/* ... */) {
@@ -725,8 +718,8 @@ pub fn update(/* ... */) {
             .set(ids.info_text, ui);
     }
 }
-
 ```
+
 I'd like you to have some fun with positioning the elements, come up with your own layout.
 
 If you run your game at this point, you should be able to play! You can guess a number and the logic will determine whether you either higher, lower or correct.
@@ -739,6 +732,5 @@ We will add some new UI elements to show these options to our user. Here's how t
 
 ![Guessing Game UI Updated](/illustration/app_ui_updated.png)
 
-But furthermore **extend the application** with and `else {/*new game and set new range*/}` branch! You can checkout my solution.
 
 ### 6. Theming - TODO
