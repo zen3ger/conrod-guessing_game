@@ -11,7 +11,7 @@ In an IMGUI library widgets do not hold state, they are recreated with always th
 ```cs
 private void ButtonInc_Click(object sender, EventArgs e)
 {
-	count += 1;
+    count += 1;
     LabelCount.Text = count.ToString();
 }
 ```
@@ -21,7 +21,7 @@ First, the update is tied to the `callback` of the `ButtonInc` object and we als
 ```cs
 private void UpdateCount(int amount)
 {
-	count += amount;
+    count += amount;
     LabelCount.Text = count.ToString();
 }
 ```
@@ -31,15 +31,17 @@ In `conrod` the code would look like this:
 
 ```rust
 let mut count = 0;
+
 //... stuff here
+
 for click in Button::new()
-	.options_come_here() //all widget settings will be defined here, like size, color...
+    .options_come_here() //all widget settings will be defined here, like size, color...
     {
-    	count += 1;
+        count += 1;
     }
 
 Text::new(&count.to_string())
-	.options_come_here();
+    .options_come_here();
 ```
 
 An IMGUI is a bit more descriptive, if you read to code what it says at each click increment the counter and show me it as text. Let's say you have a dozen buttons. Each adds, subtracts or multiplies `count`, you still only have to do the `count.to_string()` once and only once, when you redraw the `Text` in comparison to always calling `UpdateCount()` in the  C# example.
@@ -85,8 +87,8 @@ In this section we are about to write all the code needed to get an empty window
 Open up your `main.rs` file and edit to make it look like this:
 ```rust
 #[macro_use]
-extern crate piston_window;
 extern crate conrod_core;
+extern crate piston_window;
 extern crate conrod_piston;
 extern crate find_folder;
 extern crate rand;
@@ -107,7 +109,7 @@ You see that `#[macro_use]` up top, right? `conrod` has a macro wich is used alw
 The 3 basic things we will need, is a title, the width and the height of the window.
 ```rust
 fn main() {
-	let width: u32 = 450;
+    let width: u32 = 450;
     let height: u32 = 350;
     let title = "Guessing Game";
 
@@ -130,19 +132,28 @@ In our case, rather than ordering pizza from a restaurant, we want to order a wi
 Let's tell `piston` which parameters we want our new window to have.
 
 ```rust
-let mut window: PistonWindow =
-        WindowSettings::new(title, [width, height])
-            .opengl(OpenGL::V3_2)
-            .samples(4)
-            .exit_on_esc(true)
-            .vsync(true)
-            .build()
-            .unwrap();
+// Imports...
+
+use self::piston_window::{OpenGL, PistonWindow, WindowSettings};
+
+fn main() {
+    let width: u32 = 450;
+    let height: u32 = 350;
+    let title = "Guessing Game";
+
+    let mut window: PistonWindow = WindowSettings::new(title, [width, height])
+        .opengl(OpenGL::V3_2)
+        .samples(4)
+        .exit_on_esc(true)
+        .vsync(true)
+        .build()
+        .unwrap();
+}
 ```
 
 Let's go through what we specified here:
 * `WindowSettings::new()` returns with a 'builder' for the `Window` type. It contains a bunch of defaults, which we can modify by adding additional functions
-* `.opengl()` sets the version of OpenGL the backend should use for the renderig. You can choose from a predefined set of versions. To check out from what you can choose from, click [here](http://docs.piston.rs/conrod/conrod/backend/piston/enum.OpenGL.html).
+* `.opengl()` sets the version of OpenGL the backend should use for the rendering. You can choose from a predefined set of versions. To check out from what you can choose from, click [here](http://docs.piston.rs/conrod/conrod/backend/piston/enum.OpenGL.html).
 * `exit_on_esc()` tells the window to listen for the `esc` key and close.
 * `vsync()` can help you get rid of screen tearing during resize events.
 * `build()` is the function which executes the 'order' and returns with either a `Window` or some error message.
@@ -152,6 +163,8 @@ You can take a look at all the other options that can be set [here](http://docs.
 We also need to get the events from the window, for that we have to create an event loop iterator.
 
 ```rust
+// Window definition..
+
 while let Some(event) = window.next() {
     // Handle events...
 }
@@ -206,7 +219,8 @@ If you remember our initial UI design, it had a `Button`, `TextBox` for entering
 
 In our data `info` is used for the `Text`, and `guess` used for the `TextBox`s content. There was also one more `Text` for showing the guesses left, the data for that is going to be in an other struct, as it has more to do with the rules of the game.
 
-Now we define all the data for the game, and the behaviour aka. rules of the game.
+Now we define all the data for the game, and the behaviour aka. rules of the game. Append the following to the `app.rs` file.
+
 ```rust
 pub struct GameData {
     secret_num: i32,
@@ -348,9 +362,17 @@ I think the names are descriptive enough. The only thing to mention is that `ids
 ### 4. Content rendering
 The next step is to finally add something to our draw loop!
 
-Note that this will not comile yet, as we have not yet implemented our `logic::update()` function.
+Note that this will not compile yet, as we have not yet implemented our `logic::update()` function.
 
 ```rust
+// Imports...
+use self::piston_window::{OpenGL, PistonWindow, UpdateEvent, WindowSettings};
+
+mod app;
+mod logic;
+
+// ...
+
 while let Some(event) = window.next_event(&mut events) {
     // update our game state
     event.update(|_| logic::update(ui.set_widgets(), &ids, &mut game, &mut data));
@@ -360,94 +382,141 @@ while let Some(event) = window.next_event(&mut events) {
 Let's create the `logic::update()` just to see something on screen. This function is going to be the **logic**. You know what to do! Create `logic.rs` and place this snippet:
 
 ```rust
-use app::{GameData, AppData, Ids};
-use super::conrod;
+use super::app::{AppData, GameData, Ids};
+use super::conrod_core;
 
-pub fn update(ref mut ui: conrod::UiCell, ids: &Ids, game: &mut GameData, data: &mut AppData) {
-    use conrod::{Colorable, Labelable, Positionable, Sizeable};
-    use conrod::Widget;
-    use conrod::widget::text_box;
-    use conrod::widget::{Canvas, Button, Text, TextBox};
+pub fn update(ref mut ui: conrod_core::UiCell, ids: &Ids, game: &mut GameData, data: &mut AppData) {
+    use conrod_core::Widget;
+    use conrod_core::widget::text_box;
+    use conrod_core::widget::range_slider;
+    use conrod_core::widget::{Button, Canvas, RangeSlider, Text, TextBox};
+    use conrod_core::{color, Colorable, Labelable, Positionable, Sizeable};
 
-    let mut caption = "Guess number between ".to_owned();
-    let range = game.show_range();
-    caption.push_str(&range);
+    let caption = format!("Guess number between {}", game.show_range());
 
     Canvas::new()
-        .color(conrod::color::WHITE)
+        .color(color::WHITE)
         .title_bar(&caption)
         .pad(40.0)
         .set(ids.canvas, ui);
 }
 ```
 
-If you run our game now via `cargo run`, you will see that it's still a black window, well... Every cycle you tell `conrod` to update the `canvas` in the state graph, but so far, we have not rendered the graph aka. the `ui`? 
+If you run our game now via `cargo run`, you will see that it's still a black window, well... Every cycle you tell `conrod` to update the `canvas` in the state graph, but so far, we have not rendered the graph!
 
-Let's do it! Update the `main()` function in `main.rs` with the following code: 
+Let's do it! Update the `main()` function in `main.rs` with the following code (note the updated `use` statement): 
 
 ```rust
 // ...
 
-// Create an image map for conrod
-let image_map = conrod_core::image::Map::new();
+use self::piston_window::{
+    texture::UpdateTexture, G2d, G2dTexture, OpenGL, PistonWindow, Size, TextureSettings,
+    UpdateEvent, Window, WindowSettings,
+};
 
-// Create a texture to use for efficiently caching text on the GPU.
-let mut text_vertex_data = Vec::new();
+    // main() ...
 
-while let Some(event) = window.next_event(&mut events) {
-	// update our game state
-    event.update(|_| logic::update(ui.set_widgets(), &ids, &mut game, &mut data));
+    let mut window: PistonWindow =
+        WindowSettings::new(data.title.clone(), [data.width, data.height])
+            .opengl(OpenGL::V3_2)
+            .samples(4)
+            .exit_on_esc(true)
+            .vsync(true)
+            .build()
+            .unwrap();
 
-    // draw our UI
-    window.draw_2d(&event, |context, graphics| {
-        if let Some(primitives) = ui.draw_if_changed() {
-            // A function used for caching glyphs to the texture cache.
-            let cache_queued_glyphs = |graphics: &mut G2d,
-                                        cache: &mut G2dTexture,
-                                        rect: conrod_core::text::rt::Rect<u32>,
-                                        data: &[u8]| {
-                let offset = [rect.min.x, rect.min.y];
-                let size = [rect.width(), rect.height()];
-                let format = piston_window::texture::Format::Rgba8;
-                let encoder = &mut graphics.encoder;
-                text_vertex_data.clear();
-                text_vertex_data.extend(data.iter()         .flat_map(|&b| vec![255, 255, 255, b]));
-                    UpdateTexture::update(
-                        cache,
-                        encoder,
-                        format,
-                        &text_vertex_data[..],
-                        offset,
-                        size,
-                    )
-                    .expect("failed to update texture")
-            };
+    // Create the glyph and texture caches for conrod
+    let (mut glyph_cache, mut text_texture_cache) = {
+        const SCALE_TOLERANCE: f32 = 0.1;
+        const POSITION_TOLERANCE: f32 = 0.1;
+        let cache = conrod_core::text::GlyphCache::builder()
+            .dimensions(data.width, data.height)
+            .scale_tolerance(SCALE_TOLERANCE)
+            .position_tolerance(POSITION_TOLERANCE)
+            .build();
+        
+        let buffer_len = data.width as usize * data.height as usize;
+        let init = vec![128; buffer_len];
+        let settings = TextureSettings::new();
+        let factory = &mut window.factory;
+        let texture =
+            G2dTexture::from_memory_alpha(
+                factory,
+                &init,
+                data.width,
+                data.height,
+                &settings
+            )
+            .unwrap();
 
-            // Specify how to get the drawable texture from the image. In this case, the image
-            // *is* the texture.
-            fn texture_from_image<T>(img: &T) -> &T {
-                img
+        (cache, texture)
+    };
+
+    // Create the image map for conrod
+    let image_map = conrod_core::image::Map::new();
+
+    // Create a texture to use for efficiently caching text on the GPU.
+    let mut text_vertex_data = Vec::new();
+
+    while let Some(event) = window.next_event(&mut events) {
+        // update our game state
+        event.update(|_| logic::update(ui.set_widgets(), &ids, &mut game, &mut data));
+
+        // draw our UI
+        window.draw_2d(&event, |context, graphics| {
+            if let Some(primitives) = ui.draw_if_changed() {
+                // A function used for caching glyphs to the texture cache.
+                let cache_queued_glyphs = |graphics: &mut G2d,
+                                            cache: &mut G2dTexture,
+                                            rect: conrod_core::text::rt::Rect<u32>,
+                                            data: &[u8]| {
+                    let offset = [rect.min.x, rect.min.y];
+                    let size = [rect.width(), rect.height()];
+                    let format = piston_window::texture::Format::Rgba8;
+                    let encoder = &mut graphics.encoder;
+                    text_vertex_data.clear();
+                    text_vertex_data.extend(data.iter()         .flat_map(|&b| vec![255, 255, 255, b]));
+                        UpdateTexture::update(
+                            cache,
+                            encoder,
+                            format,
+                            &text_vertex_data[..],
+                            offset,
+                            size,
+                        )
+                        .expect("failed to update texture")
+                };
+
+                // Specify how to get the drawable texture from the image. In this case, the image
+                // *is* the texture.
+                fn texture_from_image<T>(img: &T) -> &T {
+                    img
+                }
+
+                // Draw the conrod `render::Primitives`.
+                conrod_piston::draw::primitives(
+                    primitives,
+                    context,
+                    graphics,
+                    &mut text_texture_cache,
+                    &mut glyph_cache,
+                    &image_map,
+                    cache_queued_glyphs,
+                    texture_from_image,
+                );
             }
-
-            // Draw the conrod `render::Primitives`.
-            conrod_piston::draw::primitives(
-                primitives,
-                context,
-                graphics,
-                &mut text_texture_cache,
-                &mut glyph_cache,
-                &image_map,
-                cache_queued_glyphs,
-                texture_from_image,
-            );
-        }
-    });
-}
+        });
+    }
+// ...
 ```
 
 That is an epic amount of code. Never fear though, a lot of this code is simply required as parameters to the last method `conrod_piston::draw` to keep things performant. Lets step through and take stock of what we have just added.
 
-The `image_map` and `text_vertex_data` variables we created allow piston to perform optimisation and caching on our UI data. This is an internal feature which we won't dwell on here, but more information is available [here](https://docs.rs/conrod_piston/0.67.0/conrod_piston/draw/fn.primitives.html) if you're the curious type. The same is true for the closure we defined named `cache_queued_glyphs`. Again, we don't need to concern ourselves with this at this point. The same is true of our next internal method `texture_from_image`.
+First, we created a [glyph cache](http://docs.piston.rs/conrod/conrod_core/text/struct.GlyphCache.html) and a [texture cache](https://docs.rs/piston_window/0.105.0/piston_window/type.G2dTexture.html). These are caching mechanisms used by `piston` to optimising performance when storing and retrieving glyph data.
+
+The `image_map` and `text_vertex_data` variables we created allow piston to perform optimisation and caching on our UI. 
+
+These are features which we won't dwell on here, but more information is available [here](https://docs.rs/conrod_piston/0.67.0/conrod_piston/draw/fn.primitives.html) if you're the curious type. The same is true for the closure we defined named `cache_queued_glyphs`. Again, we don't need to concern ourselves with this at this point. The same is true of our next internal method `texture_from_image`.
 
 At the end of our new code, beyond the caching calls, we call `conrod_piston::draw::primitives()` which is the call which renders our widget primitives. In the initial call to our `logic::update` method, we are updating the data state, which is read by our widgets when they are updated by the call to `conrod_piston::draw::primitives()`.
 
@@ -457,7 +526,7 @@ If you run our game now, you'll see a window popping up filled with white. So th
 
 The canvas has the initial width and height of the window, and it doesn't grow beyound. This is because `conrod` supports multiple backends: we have to tell it what kind of event convertions should be done.
 
-Since the conversion and handling of such events is relatively isolated, let's create one new file to manage events. Create the file `event.rs` and add the following code:
+Since the conversion and handling of such events is isolated, let's create one new file to manage events. Create the file `event.rs` and add the following code:
 
 ```rust
 //! A backend for converting src events to conrod's `Input` type.
@@ -526,6 +595,14 @@ As you can see, we are accepting generic `piston::GenericEvent` events, and retu
 Our newly added update code will also captures the Window resize event. We can now let `piston` handle the resize events which were not being captured when we resied earlier. Add the following to the beginning of your `main()` function in `main.rs`:
 
 ```rust
+// ...
+
+mod app;
+mod logic;
+mod event;
+
+// ...
+
 // Event loop - draw loop
 while let Some(event) = window.next() {
     // Handle window resizing
@@ -548,9 +625,11 @@ Rebuild your application now and test resizing the application window. you shoul
 
 #### Fonts:
 
-So text isn't rendered as there's no font defined in `ui` by default. I would say fonts are also part of **data**, because of that write a helper function to load fonts in `app.rs`:
+So text isn't rendered as there's no font defined in `ui` by default. I would say fonts are also part of **data**, because of that write a helper function to load fonts in `app.rs`, taking care to add the new `use` statement to the top of the file:
 
 ```rust
+use std::path::PathBuf;
+
 pub fn load_font(font: &str) -> PathBuf {
     use super::find_folder::Search::KidsThenParents;
 
@@ -565,13 +644,13 @@ pub fn load_font(font: &str) -> PathBuf {
 
 It assumes that you have a the font located in the project directory under the folder `*/fonts/`. You can grab the required font files from the source of this repository if required.
 
-Back to our game code, let's load the font!
+Back to our game code in `main.rs`, let's load the font!
 
 ```rust
 /* data and game inits above, just to organize data in one place */
 let font_path = app::load_font("UbuntuMono-R.ttf");
 
-//stuff
+// ...
 
 let mut ui = conrod::UiBuilder::new([data.width as f64, data.height as f64]).build();
 ui.fonts.insert_from_file(font_path).unwrap();
@@ -582,7 +661,7 @@ If you run the application now, you'll see the title displays correctly.
 
 ### 5. Logic
 
-I already asked you to skip ahead and write this code in `logic.rs`, the only thing left is to walk you through!
+I previously asked you to skip ahead and write this code in `logic.rs`, the only thing left is to walk you through!
 
 ```rust
 use app::{GameData, AppData, Ids};
@@ -724,7 +803,7 @@ I'd like you to have some fun with positioning the elements, come up with your o
 
 If you run your game at this point, you should be able to play! You can guess a number and the logic will determine whether you either higher, lower or correct.
 
-However, we need to implement the logic for starting a new game, as well as let our user determine the number range for generating a new random number:
+However, we need to implement the logic for notifying the user that their guess was correct, allow them to play a new game, as well as let our user determine the number range for generating a new random number.
 
 #### More UI
 
@@ -732,7 +811,29 @@ We will add some new UI elements to show these options to our user. Here's how t
 
 ![Guessing Game UI Updated](/illustration/app_ui_updated.png)
 
-ur game logic is already accounting for these new additions, all we need to do at this point is update our UI code by extending the main conditional `if !game.end()`. Add the following `else` statement to account for our new game state.
+Our game logic is already accounting for these new additions. in order to complete our additions, we need to update our UI code by adding the relevant `Id`'s and extend the main conditional `if !game.end()`. 
+
+First, update our list of widget Id's in `app.rs`
+
+```rust
+// ...
+
+widget_ids! {
+    pub struct Ids {
+        canvas,
+        guess_button,
+        count_text,
+        info_text,
+        textbox,
+        slider, // New
+        newgame_button // New
+    }
+}
+
+// ...
+```
+
+Add the following `else` statement to account for our new game state.
 
 ```rust
 
@@ -751,16 +852,17 @@ if !game.end() {
                 range_slider::Edge::End => game.range_max = value as i32,
             }
         }
-        for _click in Button::new()
-            .middle_of(ids.canvas)
-            .up_from(ids.slider, 40.0)
-            .w_h(150.0, 50.0)
-            .label_font_size(20)
-            .label("New game")
-            .set(ids.newgame, ui)
-        {
-            game.restart();
-        }
+
+    for _click in Button::new()
+        .middle_of(ids.canvas)
+        .up_from(ids.slider, 40.0)
+        .w_h(150.0, 50.0)
+        .label_font_size(20)
+        .label("New game")
+        .set(ids.newgame_button, ui)
+    {
+        game.restart();
+    }
 }
 ```
 
@@ -775,4 +877,8 @@ When running the game now, the logic loop will detect when the game has complete
 
 We've completed what we set out to do, build something simple with conrod. 
 
-Have fun playing the guessing game. 
+I hope you found this guide informative and enjoyable.
+
+Futher Reading:
+
+- [Conrod Documentation](https://docs.rs/conrod/latest)
