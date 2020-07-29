@@ -1,48 +1,52 @@
-# Attention!
-There were breaking changes in conrod from version 0.49.0 to 0.51.1. 
-I'll update the turorial sooner or later, till then it works with 
-v0.49.0.
-
 ## Using Conrod - Let's build something simple!
 
 We're about to make a simple application step by step. The example app will be a graphical version of the Guessing Game. I'm pretty sure you came across this one in the Rust Book. This time, we're going to make it look 'pretty'!
-![Guessing Game UI](/illustration/app_ui.png)
+![Guessing Game UI](/illustration/app_ui.png) 
 
 But before we move on, let me tell you how I'm going to structure the application based on how `conrod` and IMGUIs work.
+
 ### How to think IMGUI
 In an IMGUI library widgets do not hold state, they are recreated with always the actual data provided at each update cycle. It means you don't have to manually update the content of the widgets. Take a counter example in Visual C#:
+
 ```cs
 private void ButtonInc_Click(object sender, EventArgs e)
 {
-	count += 1;
+    count += 1;
     LabelCount.Text = count.ToString();
 }
 ```
+
 First, the update is tied to the `callback` of the `ButtonInc` object and we also have to tell the `LabelCount` object to update its `Text` field. At each point in the code you change `count` you also have to update the label. Ok, you can encapsulat these changes into one single function to call it at each point `count` changes, like:
+
 ```cs
 private void UpdateCount(int amount)
 {
-	count += amount;
+    count += amount;
     LabelCount.Text = count.ToString();
 }
 ```
+
 The point is, you store both `count` and `LabelCount.Text` while they represent the same thing.
 In `conrod` the code would look like this:
+
 ```rust
 let mut count = 0;
+
 //... stuff here
+
 for click in Button::new()
-	.options_come_here() //all widget settings will be defined here, like size, color...
+    .options_come_here() //all widget settings will be defined here, like size, color...
     {
-    	count += 1;
+        count += 1;
     }
 
 Text::new(&count.to_string())
-	.options_come_here();
+    .options_come_here();
 ```
+
 An IMGUI is a bit more descriptive, if you read to code what it says at each click increment the counter and show me it as text. Let's say you have a dozen buttons. Each adds, subtracts or multiplies `count`, you still only have to do the `count.to_string()` once and only once, when you redraw the `Text` in comparison to always calling `UpdateCount()` in the  C# example.
 
-The point of the above talk is that the **content** you see on screen is driven by the **logic** of the program, while the logic is driven by the application **data**! The separation in the application that I'm going to use will be the same. There's going to be a `main.rs` with all the setups, inits for showing the **content**. There's also going to be a `logic.rs` and an `app.rs` with the application data, and some helper functions which doesn't necessarily belongs to the other 2 categories.
+The point of the above is that the **content** you see on screen is driven by the **logic** of the program, while the logic is driven by the application **data**! The separation in the application that I'm going to use will be the same. There will be a `main.rs` with all the setup and initialisation for showing the **content**. There will also be a `logic.rs` and an `app.rs` with the application data, and some helper functions which doesn't necessarily belongs to the other 2 categories. Finally, we'll add an `event.rs` as single point of managing events.
 
 So, remember:
 ![IMGUI content flow](/illustration/imgui_content_flow.png)
@@ -56,54 +60,65 @@ Type `cargo new --bin guessing_game` into your terminal to get the skeleton of t
 
 ```toml
 [dependencies]
-conrod = "*"
+piston_window = "0.89"
+conrod_core = "0.67.0"
+conrod_piston = "0.67.0"
 find_folder="*"
 rand="*"
 ```
 
-We need to fetch `conrod` from [crates.io](https://crates.io/crates/conrod), and we're going to do that by adding it to the dependencies. `"*"` marks we want to get the latest version. `find_folder` can be used to load resources, like pictures, sounds, but the most basic example is fonts. `rand` will be used to generate the 'secret' number, with constant number it whould be a silly game, don't you think?
+We will be using:
+- `piston_window` to manage the window within which our application will exist.
+- `conrod_core` to manage our UI's widgets, and associated events.
+- `conrod_piston` as a bridge between `piston` and `conrod`
+- `find_folder` will help us manage assetss for our UI
+- `rand` will be used to generate the 'secret' number.  With a constant number it would be a silly game, don't you think?
 
-As it can take a while to download and compile for the first time, let's do the heavy lifting before we start coding, so type `cargo run` into your terminal to fetch and compile all necessary packages. If everything is fine, you'll see `Hello, world!` printed out on the last line.
+For this guide, the `piston` and `conrod` dependencies are locked at their current version at the time of writing. These may become out of date within the lifetime of this guide (at which point, you are encouraged to submit an update). 
+
+As it can take a while to download and compile for the first time, let's do the heavy lifting before we start coding, so type `cargo run` into your terminal to fetch and compile all necessary packages. If everything is fine, you'll see `Hello, world!` printed out on in your terminal.
 
 All cool? Great! Let's move on!
 
 ### 1. Basic window
-In this section we are about to write all the code needed to get an empty window show up. For now we'll use `piston_window` as the backend.
+In this section we are about to write all the code needed to get an empty window show up.
 
-##### Imports:
+#### Imports:
 Open up your `main.rs` file and edit to make it look like this:
 ```rust
 #[macro_use]
-extern crate conrod;
+extern crate conrod_core;
+extern crate piston_window;
+extern crate conrod_piston;
 extern crate find_folder;
 extern crate rand;
 
-fn main () {
-	use conrod::backend::piston::{self,Window,WindowEvents,OpenGL};
-    use conrod::backend::piston::event::UpdateEvent;
+fn main() {
 
-	/*
+    /*
     	...
     */
 }
 ```
+
 For now, that's all we need to import. The rest is going to be inside functions and modules.
+
 You see that `#[macro_use]` up top, right? `conrod` has a macro wich is used always, `widget_ids!`. Wait until we start working with widgets, I'll tell you more.
 
-##### Definitions:
+#### Definitions:
 The 3 basic things we will need, is a title, the width and the height of the window.
 ```rust
 fn main() {
-/* import here */
-
-	let width: u32 = 450;
+    let width: u32 = 450;
     let height: u32 = 350;
     let title = "Guessing Game";
 
+    // ...
 }
 ```
 
-To get a nice window we are going to use something called 'method chaining' or 'builder pattern'. Think about it like ordering some food! You first tell the cashier you want pizza, than you say "Yo, I love spicey food, add some pepperoni, and coke too".
+To get a nice window we are going to use something called `method chaining` or `builder pattern`. Think about it like ordering some food! You first tell the cashier you want pizza, than you say "Yo, I love spicy food, add some pepperoni, and coke too".
+
 ```rust
 let my_dinner = Restaurant::Order::new()
 	.food("pizza")
@@ -112,56 +127,75 @@ let my_dinner = Restaurant::Order::new()
 	.done();
 ```
 
-This way we're going to tell `conrod` with what parameters the window should be created.
+In our case, rather than ordering pizza from a restaurant, we want to order a window from `piston`.
+
+Let's tell `piston` which parameters we want our new window to have.
 
 ```rust
- let mut window: Window = piston::window::WindowSettings::new(title, [width, height])
+// Imports...
+
+use self::piston_window::{OpenGL, PistonWindow, WindowSettings};
+
+fn main() {
+    let width: u32 = 450;
+    let height: u32 = 350;
+    let title = "Guessing Game";
+
+    let mut window: PistonWindow = WindowSettings::new(title, [width, height])
         .opengl(OpenGL::V3_2)
+        .samples(4)
         .exit_on_esc(true)
         .vsync(true)
         .build()
         .unwrap();
+}
 ```
-Let's go through what we specified here!
-* `WindowSettings::new()` returns with a 'builder' for the `Window` type, which contains a bunch of defaults, which ones  we can modify with the rest of the functions!
-* `.opengl()` sets the version of OpenGL the backend should use for the renderig. You can choose from a predefined set of versions. To check out from what you can choose from, click [here](http://docs.piston.rs/conrod/conrod/backend/piston/enum.OpenGL.html).
-* `exit_on_esc()` makes possible, that you can close the window by pressing, well, the `esc` key.
+
+Let's go through what we specified here:
+* `WindowSettings::new()` returns with a 'builder' for the `Window` type. It contains a bunch of defaults, which we can modify by adding additional functions
+* `.opengl()` sets the version of OpenGL the backend should use for the rendering. You can choose from a predefined set of versions. To check out from what you can choose from, click [here](http://docs.piston.rs/conrod/conrod/backend/piston/enum.OpenGL.html).
+* `exit_on_esc()` tells the window to listen for the `esc` key and close.
 * `vsync()` can help you get rid of screen tearing during resize events.
-* `build()` is the function that actually does the job and returns with either a `Window` or some error message.
+* `build()` is the function which executes the 'order' and returns with either a `Window` or some error message.
 
 You can take a look at all the other options that can be set [here](http://docs.piston.rs/conrod/conrod/backend/piston/window/struct.WindowSettings.html).
 
 We also need to get the events from the window, for that we have to create an event loop iterator.
+
 ```rust
-let mut events = WindowEvents::new();
-```
-##### The event loop:
-The only thing left is to write a loop in which we can check the window events, and it also keeps are window open.
-```rust
-while let Some(event) = window.next_event(&mut events) {
-	// stuff
+// Window definition..
+
+while let Some(event) = window.next() {
+    // Handle events...
 }
 ```
-This basically says 'while there is any event, I'll keep doing `{ //stuff }`', meaning this loop runs, while the window is open.
+
+#### The event loop:
+
+The event loop we defined above basically states "while there is any event, I'll keep doing `{ // Handle events... }`", meaning this loop runs while the window is open.
 We are going to use this loop to draw, update and do pretty much everything we need. But don't be confused! It doesn't mean the entire program will be an if-else spagetti, remember the separation I talked at the beginning. :)
 
 If you do `cargo run` a black window should pop up with the given title and dimensions. Congrats! :)
 
 ### 2. Application and game data
-In this section our goal is to define what kind of data are we going to track. This is something you may not have to do in traditional, retained mode GUI systems as widgets store many of that data. But remember `conrod` is an IMGUI library of which the most mentionable is that widgets do not store state! For instance `TextBox` doesn't store the string it displays, so it basically writes into the a variable, and reads back from a variable at each update. The window data is stored, so you don't have to pass `window`, or it's size and title to the draw function. Writing a function to except a struct is still easier than adding more and more parameters and then fighting with the borrow checker, I think.
+In this section our goal is to define what kind of data are we going to track. This is something you may not have to do in traditional, retained mode GUI systems as widgets store many of that data. But remember `conrod` is an IMGUI library of which the most mentionable is that widgets do not store state!
+
+For instance `TextBox` doesn't store the string it displays, so it basically writes into the a variable, and reads back from a variable at each update. The window data is stored, so you don't have to pass `window`, or it's size and title to the draw function. Writing a function to accept a struct is still much easier than adding more and more parameters and then fighting with the borrow checker, I think.
 
 Taking care of widget state is sometimes a problem, but most of the time is a great way of specifing no more than what we need!
 
-So let's create an `app.rs` file and move all the **data** from `main` if it's not necessary for the **content** to be displayed. In `app` we have:
+So let's create an `app.rs` file and move the bits of **data** we defined earlier (`width`,`height`, etc...) from `main` (it's not necessary for the **content** to be displayed). In `app` we have:
+
 ```rust
 pub struct AppData {
+    // fields are public, so less `fn` to implement
+    // for control over data manipulation feel free to extend the `impl` block
+
     pub width: u32,
     pub height: u32,
     pub guess: String,
     pub title: String,
     pub info: String,
-    // fields are public, so less `fn` to implement
-    // for control over data manipulation feel free to extend the `impl` block
 }
 
 impl AppData {
@@ -179,11 +213,14 @@ impl AppData {
         self.guess = guess.to_owned();
     }
 }
-```
-If you remember the design up top, it had a `Button`, `TextBox` for entering the guess and a `Text` for information about the previous guess.
-`info` used for the `Text`, `guess` used for the `TextBox`s content. There was also one more `Text` for showing the guesses left, the data for that is going to be in an other struct, as it has more to do with the rules of the game.
 
-Now we define all the data for the game, and the behaviour aka. rules of the game.
+```
+If you remember our initial UI design, it had a `Button`, `TextBox` for entering the guess and a `Text` for information about the previous guess.
+
+In our data `info` is used for the `Text`, and `guess` used for the `TextBox`s content. There was also one more `Text` for showing the guesses left, the data for that is going to be in an other struct, as it has more to do with the rules of the game.
+
+Now we define all the data for the game, and the behaviour aka. rules of the game. Append the following to the `app.rs` file.
+
 ```rust
 pub struct GameData {
     secret_num: i32,
@@ -211,7 +248,6 @@ impl GameData {
     pub fn get_no_guess(&self) -> i32 {
         self.no_guess
     }
-	// add get() and set() for range bounds if you want to, I don't really...
 
 	// defines how you can modify the no_guess and the rest of the internals
     pub fn new_guess(&mut self, guess: &str) -> String {
@@ -231,6 +267,7 @@ impl GameData {
         }
         "? X".to_owned()
     }
+
 	// easiest way to concat converted values and do the formatting
     pub fn show_range(&self) -> String {
         format!("({}, {})", self.range_min, self.range_max)
@@ -250,160 +287,381 @@ impl GameData {
 }
 ```
 
-The modifications in `main.rs` to make:
+We will need to make additional modifications in `main.rs` to match our new structure:
+
 ```rust
 /* externs */
 
 mod app;
 
 fn main() {
-	/* imports */
+    /* imports */
 
-	// mut so later we can set a few things
-	let mut data = app::AppData::new(450, 350, "Guessing Game");
+    // Necessary imports for the window, and the even-loop
+    let mut data = app::AppData::new(450, 350, "Guessing Game");
     let mut game = app::GameData::new(10, [1, 50]);
 
-	let mut window: Window = piston::window::WindowSettings::new(data.title.clone(), [data.width, data.height])
-        .opengl(OpenGL::V3_2)
-        .exit_on_esc(true)
-        .vsync(true)
-        .build()
-        .unwrap();
+    // Initialization of the window
+    let mut window: PistonWindow =
+        WindowSettings::new(data.title.clone(), [data.width, data.height])
+            .opengl(OpenGL::V3_2)
+            .samples(4)
+            .exit_on_esc(true)
+            .vsync(true)
+            .build()
+            .unwrap();
 
-    /* event loop iterator, event loop */
+    // event loop...
 }
 ```
 
 ### 3. UI setups
 The next step is going to be creating the `Ui`. This is special as `Ui` in `conrod` is the data structure that keeps track of the state of every `Widget`, the `Theme` you use globally (this is for in app themeing, does not support OS theme at the moment) and many more. In generall, `Ui` handles draw events, like highlighting a hovered button. It also tries to reduce the number of draw calls, meaning it updates the screen if and only if there's an update which demands a redraw. (Of course, you can demand continuous redraws!)
 
-For more, go look at [here](http://docs.piston.rs/conrod/conrod/struct.Ui.html)!
+For more information, see [here](http://docs.piston.rs/conrod/conrod/struct.Ui.html).
 
-##### UiBuilder:
+#### UiBuilder:
 `UiBuilder` let's you specify the ui's dimensions, theme (if none than the default is used) and widget capacity.
 As the `Ui` tracks widgets in a graph, it can grow organically or you can help it predefineing how many widgets you're about to instantiate, this could help app launch times, so you're not expand the graph dynamically in the very first draw cycle.
 
 Right now, lets stick with the dimensions only, so you can experiment with adding more to what I've done.
 
 ```rust
+
 // add this to main()
-let mut ui = conrod::UiBuilder::new([WIDTH as f64,HEIGHT as f64]).build();
+let mut ui = conrod_core::UiBuilder::new([data.width as f64, data.height as f64]).build();
+
 ```
-##### Ids:
+
+#### Widget Ids:
 As the widget states are store inside the graph, we use `Ids` to acces specific widgets. `conrod` provides a macro for creating an `Ids` struct with the given fields. In my opinion `Ids` are part of the **data**, so place the macro in `app.rs`.
+
 ```rust
 widget_ids! {
     pub struct Ids {
         canvas,
-        button,
+        guess_button,
         count_text,
         info_text,
         textbox,
     }
 }
-/* AppData and GameData */
+
+// ...AppData and GameData
 ```
 So, the macro will create the `Ids` struct for us, with fields with the name representing a unique widget id. These `Ids` needs a way of knowing, if they're exist in the `ui`. If you add more widgets, don't forget to extend `Ids`.
+
+Let's update the `main()` fn in `main.rs` to reference our widget id's:
+
 ```rust
-// add this to main()
-let mut ids = Ids::new(ui.widget_id_generator());
+let ids = app::Ids::new(ui.widget_id_generator());
 ```
 
 I think the names are descriptive enough. The only thing to mention is that `ids.canvas` is the id of `Canvas`, a widget that can hold other widgets and usually fills the entire window.
 
 ### 4. Content rendering
-Next step is to finally add something to our draw loop!
+The next step is to finally add something to our draw loop!
+
+Note that this will not compile yet, as we have not yet implemented our `logic::update()` function.
+
 ```rust
+// Imports...
+use self::piston_window::{OpenGL, PistonWindow, UpdateEvent, WindowSettings};
+
+mod app;
+mod logic;
+
+// ...
+
 while let Some(event) = window.next_event(&mut events) {
-        event.update(|_| logic::update(ui.set_widgets(), &ids, &mut game, &mut data));
+    // update our game state
+    event.update(|_| logic::update(ui.set_widgets(), &ids, &mut game, &mut data));
 }
 ```
-Let me skip ahead without saying anything, and let's create the `logic::update()` just to see something on screen. This functions is going to be the **logic**. You know what to do! Create `logic.rs` and place this snippet:
+
+Let's create the `logic::update()` just to see something on screen. This function is going to be the **logic**. You know what to do! Create `logic.rs` and place this snippet:
+
 ```rust
-use app::{GameData, AppData, Ids};
-use super::conrod;
+use super::app::{AppData, GameData, Ids};
+use super::conrod_core;
 
-pub fn update(ref mut ui: conrod::UiCell, ids: &Ids, game: &mut GameData, data: &mut AppData) {
-    use conrod::{Colorable, Labelable, Positionable, Sizeable};
-    use conrod::Widget;
-    use conrod::widget::text_box;
-    use conrod::widget::{Canvas, Button, Text, TextBox};
+pub fn update(ref mut ui: conrod_core::UiCell, ids: &Ids, game: &mut GameData, data: &mut AppData) {
+    use conrod_core::Widget;
+    use conrod_core::widget::text_box;
+    use conrod_core::widget::range_slider;
+    use conrod_core::widget::{Button, Canvas, RangeSlider, Text, TextBox};
+    use conrod_core::{color, Colorable, Labelable, Positionable, Sizeable};
 
-    let mut caption = "Guess number between ".to_owned();
-    let range = game.show_range();
-    caption.push_str(&range);
+    let caption = format!("Guess number between {}", game.show_range());
 
     Canvas::new()
-        .color(conrod::color::WHITE)
+        .color(color::WHITE)
         .title_bar(&caption)
         .pad(40.0)
         .set(ids.canvas, ui);
 }
 ```
 
-If you run it, you see that it's still a black window, well... Every cycle you tell `conrod` to update the `canvas` in the state graph, but have you ever rendered the graph aka. the `ui`? Nope, so let's do it!
+If you run our game now via `cargo run`, you will see that it's still a black window, well... Every cycle you tell `conrod` to update the `canvas` in the state graph, but so far, we have not rendered the graph!
+
+Let's do it! Update the `main()` function in `main.rs` with the following code (note the updated `use` statement): 
 
 ```rust
-let mut text_texture_cache = piston::window::GlyphCache::new(&mut window,0,0);
-let image_map = conrod::image::Map::new();
+// ...
 
-while let Some(event) = window.next_event(&mut events) {
-	// update ui first
-	event.update(|_| set_ui(ui.set_widgets(),&ids));
-	// then display
-	window.draw_2d(&event, |c,g| {
-		if let Some(primitives) = ui.draw_if_changed() {
-			fn texture_from_image<T>(img:&T) -> &T { img };
-			piston::window::draw(c,g, primitives,
-								 &mut text_texture_cache,
-								 &image_map,
-								 texture_from_image);
-		}
-	});
-}
+use self::piston_window::{
+    texture::UpdateTexture, G2d, G2dTexture, OpenGL, PistonWindow, Size, TextureSettings,
+    UpdateEvent, Window, WindowSettings,
+};
+
+    // main() ...
+
+    let mut window: PistonWindow =
+        WindowSettings::new(data.title.clone(), [data.width, data.height])
+            .opengl(OpenGL::V3_2)
+            .samples(4)
+            .exit_on_esc(true)
+            .vsync(true)
+            .build()
+            .unwrap();
+
+    // Create the glyph and texture caches for conrod
+    let (mut glyph_cache, mut text_texture_cache) = {
+        const SCALE_TOLERANCE: f32 = 0.1;
+        const POSITION_TOLERANCE: f32 = 0.1;
+        let cache = conrod_core::text::GlyphCache::builder()
+            .dimensions(data.width, data.height)
+            .scale_tolerance(SCALE_TOLERANCE)
+            .position_tolerance(POSITION_TOLERANCE)
+            .build();
+        
+        let buffer_len = data.width as usize * data.height as usize;
+        let init = vec![128; buffer_len];
+        let settings = TextureSettings::new();
+        let factory = &mut window.factory;
+        let texture =
+            G2dTexture::from_memory_alpha(
+                factory,
+                &init,
+                data.width,
+                data.height,
+                &settings
+            )
+            .unwrap();
+
+        (cache, texture)
+    };
+
+    // Create the image map for conrod
+    let image_map = conrod_core::image::Map::new();
+
+    // Create a texture to use for efficiently caching text on the GPU.
+    let mut text_vertex_data = Vec::new();
+
+    while let Some(event) = window.next_event(&mut events) {
+        // update our game state
+        event.update(|_| logic::update(ui.set_widgets(), &ids, &mut game, &mut data));
+
+        // draw our UI
+        window.draw_2d(&event, |context, graphics| {
+            if let Some(primitives) = ui.draw_if_changed() {
+                // A function used for caching glyphs to the texture cache.
+                let cache_queued_glyphs = |graphics: &mut G2d,
+                                            cache: &mut G2dTexture,
+                                            rect: conrod_core::text::rt::Rect<u32>,
+                                            data: &[u8]| {
+                    let offset = [rect.min.x, rect.min.y];
+                    let size = [rect.width(), rect.height()];
+                    let format = piston_window::texture::Format::Rgba8;
+                    let encoder = &mut graphics.encoder;
+                    text_vertex_data.clear();
+                    text_vertex_data.extend(data.iter()         .flat_map(|&b| vec![255, 255, 255, b]));
+                        UpdateTexture::update(
+                            cache,
+                            encoder,
+                            format,
+                            &text_vertex_data[..],
+                            offset,
+                            size,
+                        )
+                        .expect("failed to update texture")
+                };
+
+                // Specify how to get the drawable texture from the image. In this case, the image
+                // *is* the texture.
+                fn texture_from_image<T>(img: &T) -> &T {
+                    img
+                }
+
+                // Draw the conrod `render::Primitives`.
+                conrod_piston::draw::primitives(
+                    primitives,
+                    context,
+                    graphics,
+                    &mut text_texture_cache,
+                    &mut glyph_cache,
+                    &image_map,
+                    cache_queued_glyphs,
+                    texture_from_image,
+                );
+            }
+        });
+    }
+// ...
 ```
-`text_texture_cache` used to efficiently cache fonts. `image_map` describes the widget-image relationships. Confused? No worries, right now only `text_texture_cache` will be used, the other one is just empty shell to feed into the `draw()` function of `piston` backend.
 
-If you run the application now, you'll see a window popping up filled with white. So the canvas actually fills out the window, huh great! Let's test resizing the window. Oooops, you quickly realize that it's not working properly. Also, where's the `caption`?
+That is an epic amount of code. Never fear though, a lot of this code is simply required as parameters to the last method `conrod_piston::draw` to keep things performant. Lets step through and take stock of what we have just added.
+
+First, we created a [glyph cache](http://docs.piston.rs/conrod/conrod_core/text/struct.GlyphCache.html) and a [texture cache](https://docs.rs/piston_window/0.105.0/piston_window/type.G2dTexture.html). These are caching mechanisms used by `piston` to optimising performance when storing and retrieving glyph data.
+
+The `image_map` and `text_vertex_data` variables we created allow piston to perform optimisation and caching on our UI. 
+
+These are features which we won't dwell on here, but more information is available [here](https://docs.rs/conrod_piston/0.67.0/conrod_piston/draw/fn.primitives.html) if you're the curious type. The same is true for the closure we defined named `cache_queued_glyphs`. Again, we don't need to concern ourselves with this at this point. The same is true of our next internal method `texture_from_image`.
+
+At the end of our new code, beyond the caching calls, we call `conrod_piston::draw::primitives()` which is the call which renders our widget primitives. In the initial call to our `logic::update` method, we are updating the data state, which is read by our widgets when they are updated by the call to `conrod_piston::draw::primitives()`.
+
+If you run our game now, you'll see a window popping up filled with white. So the canvas actually fills out the window, huh great! Let's test resizing the window. Oooops, you quickly realize that it's not working properly. Also, where's the `caption`?
 
 ##### Resize:
-The canvas has the initial width and height of the window, and it doesn't grow beyound. It's because `conrod` supports multiple backends, so you have to tell it what kind of event convertions should be done. Add 3 more lines right above `event.update()` to make resizing work and by general register window events.
+
+The canvas has the initial width and height of the window, and it doesn't grow beyound. This is because `conrod` supports multiple backends: we have to tell it what kind of event convertions should be done.
+
+Since the conversion and handling of such events is isolated, let's create one new file to manage events. Create the file `event.rs` and add the following code:
+
 ```rust
-if let Some(e) = piston::window::convert_event(event.clone(), &window) {
-            ui.handle_event(e);
+//! A backend for converting src events to conrod's `Input` type.
+
+use conrod_core::{event, input, Point, Scalar};
+use piston_window::GenericEvent;
+
+/// Converts any `GenericEvent` to an `Input` event for conrod.
+///
+/// The given `width` and `height` must be `Scalar` (DPI agnostic) values.
+pub fn convert<E>(event: E, win_w: Scalar, win_h: Scalar) -> Option<event::Input>
+where
+  E: GenericEvent,
+{
+  // Translate the coordinates from top-left-origin-with-y-down to centre-origin-with-y-up.
+  let translate_coords = |xy: Point| (xy[0] - win_w / 2.0, -(xy[1] - win_h / 2.0));
+
+  if let Some(xy) = event.mouse_cursor_args() {
+    let (x, y) = translate_coords(xy);
+    return Some(event::Input::Motion(input::Motion::MouseCursor {
+      x: x,
+      y: y,
+    }));
+  }
+
+  if let Some(rel_xy) = event.mouse_relative_args() {
+    let (rel_x, rel_y) = translate_coords(rel_xy);
+    return Some(event::Input::Motion(input::Motion::MouseRelative {
+      x: rel_x,
+      y: rel_y,
+    }));
+  }
+
+  if let Some(xy) = event.mouse_scroll_args() {
+    // Invert the scrolling of the *y* axis as *y* is up in conrod.
+    let (x, y) = (xy[0], -xy[1]);
+    return Some(event::Input::Motion(input::Motion::Scroll { x: x, y: y }));
+  }
+
+  if let Some(button) = event.press_args() {
+    return Some(event::Input::Press(button));
+  }
+
+  if let Some(button) = event.release_args() {
+    return Some(event::Input::Release(button));
+  }
+
+  if let Some(text) = event.text_args() {
+    return Some(event::Input::Text(text));
+  }
+
+  if let Some(dim) = event.resize_args() {
+    return Some(event::Input::Resize(dim[0], dim[1]));
+  }
+
+  if let Some(b) = event.focus_args() {
+    return Some(event::Input::Focus(b));
+  }
+
+  None
 }
 ```
-##### Fonts:
-So text isn't rendered as there's no font defined in `ui` by default. I would say fonts are also part of **data**, because of that write a helper function to load fonts in `app.rs`:
+
+As you can see, we are accepting generic `piston::GenericEvent` events, and returning `conrod_core::event` events, which our UI knows how to handle.
+
+Our newly added update code will also captures the Window resize event. We can now let `piston` handle the resize events which were not being captured when we resied earlier. Add the following to the beginning of your `main()` function in `main.rs`:
+
 ```rust
-pub fn load_font(font: &str) -> super::std::path::PathBuf {
+// ...
+
+mod app;
+mod logic;
+mod event;
+
+// ...
+
+// Event loop - draw loop
+while let Some(event) = window.next() {
+    // Handle window resizing
+    let size = window.size();
+
+    let (win_w, win_h) = (
+        size.width as conrod_core::Scalar,
+        size.height as conrod_core::Scalar,
+    );
+
+    // Let our UI handle events
+    if let Some(e) = event::convert(event.clone(), win_w, win_h) {
+        ui.handle_event(e);
+    }
+
+    // ...
+```
+
+Rebuild your application now and test resizing the application window. you should see the application `redraw` as the event is handled at the end of the mouse drag.
+
+#### Fonts:
+
+So text isn't rendered as there's no font defined in `ui` by default. I would say fonts are also part of **data**, because of that write a helper function to load fonts in `app.rs`, taking care to add the new `use` statement to the top of the file:
+
+```rust
+use std::path::PathBuf;
+
+pub fn load_font(font: &str) -> PathBuf {
     use super::find_folder::Search::KidsThenParents;
 
-    let fonts_dir = KidsThenParents(3, 5).for_folder("fonts").expect("`fonts/` not found!");
+    let fonts_dir = KidsThenParents(3, 5)
+        .for_folder("fonts")
+        .expect("`fonts/` not found!");
     let font_path = fonts_dir.join(font);
 
     font_path
 }
 ```
-It assumes that you have a the font located in the project directory under the folder `*/fonts/`.
 
-Let's load the font!
+It assumes that you have a the font located in the project directory under the folder `*/fonts/`. You can grab the required font files from the source of this repository if required.
+
+Back to our game code in `main.rs`, let's load the font!
+
 ```rust
 /* data and game inits above, just to organize data in one place */
 let font_path = app::load_font("UbuntuMono-R.ttf");
 
-//stuff
+// ...
 
 let mut ui = conrod::UiBuilder::new([data.width as f64, data.height as f64]).build();
 ui.fonts.insert_from_file(font_path).unwrap();
 let ids = Ids::new(ui.widget_id_generator());
 ```
 
-If you run the application now, you'll get the title and resize work properly.
+If you run the application now, you'll see the title displays correctly.
 
 ### 5. Logic
 
-I already asked you to skip ahead and write this code in `logic.rs`, the only thing left is to walk you through!
+I previously asked you to skip ahead and write this code in `logic.rs`, the only thing left is to walk you through!
 
 ```rust
 use app::{GameData, AppData, Ids};
@@ -415,7 +673,7 @@ pub fn update(ref mut ui: conrod::UiCell, ids: &Ids, game: &mut GameData, data: 
     use conrod::widget::text_box;
     use conrod::widget::{Canvas, Button, Text, TextBox};
 
-    let caption = app::set_caption(&game);
+    let caption = format!("Guess number between {}", game.show_range());
 
     Canvas::new()
         .color(conrod::color::WHITE)
@@ -424,16 +682,7 @@ pub fn update(ref mut ui: conrod::UiCell, ids: &Ids, game: &mut GameData, data: 
         .set(ids.canvas, ui);
 }
 ```
-Where `set_caption()` is in `app.rs` and defined as:
-```rust
-pub fn set_caption(game: &GameData) -> String {
-    let mut caption = "Guess number between ".to_owned();
-    let range = game.show_range();
-    caption.push_str(&range);
 
-    caption
-}
-```
 Q: **Why do I define the `caption` here?**
 A: Because it's the combination of the two states, it does not belongs to any, only to the canvas.
 
@@ -451,70 +700,86 @@ Let's look at the `Canvas` for a second! As you can see we're not binding a canv
 The most important bit is `set()`. It creates the widget, adds it to the `ui` graph with the given id.
 
 You can look up `Positionable` to see all the functions available, and to have a better understanding of what the code below means. I'll give you the basic syntax for each widget used, and then the final logic and one more 'homework' to do.
-##### Button:
+
+#### The Guess Button:
+
 ```rust
 for _click in Button::new()
-    .top_left_of(ids.canvas)
-    .w_h(100.0, 50.0)
+    .top_left_with_margin_on(ids.canvas, 0.0)
     .label("Guess!")
-	.set(ids.button, ui)
-{
-	data.info = game.new_guess(&data.guess);
-}
+    .w_h(100.0, 40.0)
+    .color(color::WHITE)
+    .press_color(color::RED)
+    .set(ids.guess_button, ui)
+    {
+        data.info = game.new_guess(&data.guess);
+    }
 ```
-It reads quite well: 'I have a button at the top left corner of the canvas, with size of 100 by 50, it has a label. For each click this button takes a new guess and based on that updates the info.' Before you start screaming, that `button` isn't at the top left, remember we have an edge padding of 40 set for the `canvas`. `_` in `_click` is used to tell the compiler we named the iterator, but not going to use it, and we will get no warnings.
 
-##### Text:
+It reads quite well: 'I have a button at the top left corner of the canvas, with size of 100 by 40. It has a label. For each click this button takes a new guess and based on that updates the info.' 
+
+Before you start screaming, that `button` isn't at the top left, remember we have an edge padding of 40 set for the `canvas`. `_` in `_click` is used to tell the compiler we named the iterator, but not going to use it, and we will get no warnings.
+
+#### Text:
+
+Add some text feedback with the following snippet:
+
 ```rust
 Text::new(&(game.get_no_guess().to_string()))
-    .middle_of(ids.button)
-    .down_from(ids.button, 10.0)
+    .middle_of(ids.guess_button)
+    .down_from(ids.guess_button, 10.0)
     .set(ids.count_text, ui);
 ```
 
-##### TextBox:
+#### TextBox:
+
+...and a text box for entry of our guess:
+
 ```rust
 for edit in TextBox::new(&data.guess)
-    .align_text_middle()
-    .right_from(ids.button, 10.0)
+    .right_from(ids.guess_button, 10.0)
     .w_h(200.0, 50.0)
     .set(ids.textbox, ui)
-{
-    match edit {
-        text_box::Event::Enter => {
-            data.info = game.new_guess(&data.guess);
-        }
-        text_box::Event::Update(text) => {
-            data.new_guess(&text);
+    {
+        match edit {
+            text_box::Event::Enter => {
+                data.info = game.new_guess(&data.guess);
+            }
+            text_box::Event::Update(text) => {
+                data.new_guess(&text);
+            }
         }
     }
-}
 ```
 
-The complete update logic is:
+The complete update logic should look like the following:
+
 ```rust
 pub fn update(/* ... */) {
     /* imports, caption and canvas */
 
 	if !game.end() {
         for _click in Button::new()
-            .top_left_of(ids.canvas)
-            .w_h(100.0, 50.0)
+            .top_left_with_margin_on(ids.canvas, 0.0)
             .label("Guess!")
-            .set(ids.button, ui) {
+            .w_h(100.0, 40.0)
+            .color(color::WHITE)
+            .press_color(color::RED)
+            .set(ids.guess_button, ui)
+        {
             data.info = game.new_guess(&data.guess);
         }
 
         Text::new(&(game.get_no_guess().to_string()))
-            .middle_of(ids.button)
-            .down_from(ids.button, 10.0)
+            .middle_of(ids.guess_button)
+            .down_from(ids.guess_button, 10.0)
             .set(ids.count_text, ui);
 
         for edit in TextBox::new(&data.guess)
-            .align_text_middle()
-            .right_from(ids.button, 10.0)
+            .right_from(ids.guess_button, 10.0)
             .w_h(200.0, 50.0)
-            .set(ids.textbox, ui) {
+            .set(ids.textbox, ui)
+        {
             match edit {
                 text_box::Event::Enter => {
                     data.info = game.new_guess(&data.guess);
@@ -533,7 +798,87 @@ pub fn update(/* ... */) {
     }
 }
 ```
-I'd like you to have some fun with positioning the elements, come up with your own layout.
-But furthermore **extend the application** with and `else {/*new game and set new range*/}` branch! You can checkout my solution.
 
-### 6. Theming - TODO
+I'd like you to have some fun with positioning the elements, come up with your own layout.
+
+If you run your game at this point, you should be able to play! You can guess a number and the logic will determine whether you either higher, lower or correct.
+
+However, we need to implement the logic for notifying the user that their guess was correct, allow them to play a new game, as well as let our user determine the number range for generating a new random number.
+
+#### More UI
+
+We will add some new UI elements to show these options to our user. Here's how that screen will look:
+
+![Guessing Game UI Updated](/illustration/app_ui_updated.png)
+
+Our game logic is already accounting for these new additions. in order to complete our additions, we need to update our UI code by adding the relevant `Id`'s and extend the main conditional `if !game.end()`. 
+
+First, update our list of widget Id's in `app.rs`
+
+```rust
+// ...
+
+widget_ids! {
+    pub struct Ids {
+        canvas,
+        guess_button,
+        count_text,
+        info_text,
+        textbox,
+        slider, // New
+        newgame_button // New
+    }
+}
+
+// ...
+```
+
+Add the following `else` statement to account for our new game state.
+
+```rust
+
+if !game.end() {
+    // ... Existing code
+} else {
+    for (edge, value) in
+            RangeSlider::new(game.range_min as f32, game.range_max as f32, -500.0, 500.0)
+                .padded_w_of(ids.canvas, 100.0)
+                .h(50.0)
+                .mid_bottom_with_margin_on(ids.canvas, 10.0)
+                .set(ids.slider, ui)
+        {
+            match edge {
+                range_slider::Edge::Start => game.range_min = value as i32,
+                range_slider::Edge::End => game.range_max = value as i32,
+            }
+        }
+
+    for _click in Button::new()
+        .middle_of(ids.canvas)
+        .up_from(ids.slider, 40.0)
+        .w_h(150.0, 50.0)
+        .label_font_size(20)
+        .label("New game")
+        .set(ids.newgame_button, ui)
+    {
+        game.restart();
+    }
+}
+```
+
+Here, we've introduced two new widgets:
+
+- A `RangeSlider` which will allow the player to choose a number range for generating a new random number for the next game.
+- A new `Button` to begin the game.
+
+When running the game now, the logic loop will detect when the game has completed, and present this new UI to the player.
+
+#### The end
+
+We've completed what we set out to do, build something simple with conrod. 
+
+I hope you found this guide informative and enjoyable.
+
+Futher Reading:
+
+- [Conrod Documentation](https://docs.rs/conrod/latest)

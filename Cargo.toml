@@ -1,9 +1,12 @@
 [package]
 name = "guessing_game"
-version = "0.1.0"
-authors = ["zen3ger"]
+version = "0.2.0"
+authors = ["zen3ger", "Shane Handley <shanehandley@fastmail.com>"]
+edition = "2018"
 
 [dependencies]
-conrod="0.49.0"
+piston_window = "0.89"
+conrod_piston = "0.67.0"
+conrod_core = "0.67.0"
 find_folder="*"
 rand="*"
